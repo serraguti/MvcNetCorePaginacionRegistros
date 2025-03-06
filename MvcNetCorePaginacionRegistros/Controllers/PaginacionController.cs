@@ -16,6 +16,34 @@ namespace MvcNetCorePaginacionRegistros.Controllers
         }
 
         public async Task<IActionResult>
+            EmpleadosOficioOut(int? posicion, string oficio)
+        {
+            if (posicion == null)
+            {
+                posicion = 1;
+                return View();
+            }
+            else
+            {
+                ModelEmpleadosOficio model = await
+                    this.repo.GetEmpleadosOficioOutAsync(posicion.Value, oficio);
+                ViewData["REGISTROS"] = model.NumeroRegistros;
+                ViewData["OFICIO"] = oficio;
+                return View(model);
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EmpleadosOficioOut(string oficio)
+        {
+            ModelEmpleadosOficio model = await
+                this.repo.GetEmpleadosOficioOutAsync(1, oficio);
+            ViewData["REGISTROS"] = model.NumeroRegistros;
+            ViewData["OFICIO"] = oficio;
+            return View(model);
+        }
+
+        public async Task<IActionResult>
             EmpleadosOficio(int? posicion, string oficio)
         {
             if (posicion == null)

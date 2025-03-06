@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MvcNetCorePaginacionRegistros.Data;
 using MvcNetCorePaginacionRegistros.Models;
+using System.Data;
 
 #region VISTAS Y PROCEDIMIENTOS
 /*
@@ -41,6 +42,20 @@ select EMP_NO, APELLIDO, OFICIO, SALARIO, DEPT_NO from
 	where OFICIO = @oficio) query
 	where POSICION >= @posicion AND POSICION < (@posicion + 2)
 go
+create procedure SP_GRUPO_EMPLEADOS_OFICIO_OUT
+(@posicion int, @oficio nvarchar(50)
+, @registros int out)
+as
+	--ALMACENAMOS EL NUMERO DE REGISTROS DEL FILTRO
+	select @registros = count(EMP_NO) from EMP
+	where OFICIO=@oficio
+	select EMP_NO, APELLIDO, OFICIO, SALARIO, DEPT_NO from
+	(select 
+	ROW_NUMBER() over (order by APELLIDO) as POSICION, 
+	EMP_NO, APELLIDO, OFICIO, SALARIO, DEPT_NO FROM EMP
+	where OFICIO = @oficio) query
+	where POSICION >= @posicion AND POSICION < (@posicion + 2)
+go
 exec SP_GRUPO_EMPLEADOS_OFICIO 1, 'ANALISTA'
 */
 #endregion
@@ -54,6 +69,28 @@ namespace MvcNetCorePaginacionRegistros.Repositories
         public RepositoryHospital(HospitalContext context)
         {
             this.context = context;
+        }
+
+        public async Task<ModelEmpleadosOficio> 
+            GetEmpleadosOficioOutAsync(int posicion, string oficio)
+        {
+            string sql = "SP_GRUPO_EMPLEADOS_OFICIO_OUT @posicion, @oficio, @registros out";
+            SqlParameter pamPosicion = new SqlParameter("@posicion", posicion);
+            SqlParameter pamOficio = new SqlParameter("@oficio", oficio);
+            SqlParameter pamRegistros = new SqlParameter("@registros", 0);
+            pamRegistros.Direction = ParameterDirection.Output;
+            var consulta =
+                this.context.Empleados.FromSqlRaw
+                (sql, pamPosicion, pamOficio, pamRegistros);
+            //PRIMERO DEBEMOS EJECUTAR LA CONSULTA PARA PODER 
+            //RECUPERAR LOS PARAMETROS DE SALIDA
+            List<Empleado> empleados = await consulta.ToListAsync();
+            int registros = int.Parse(pamRegistros.Value.ToString());
+            return new ModelEmpleadosOficio
+            {
+                NumeroRegistros = registros,
+                Empleados = empleados
+            };
         }
 
         public async Task<int>
